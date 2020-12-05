@@ -5,17 +5,26 @@ fn main() -> io::Result<()> {
     let file = File::open("input.txt")?;
     let reader = BufReader::new(file);
 
-    let mut count = 0;
-    let mut x = 0;
-    for line in reader.lines() {
+    let slopes = [(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)];
+    let mut counts = [0; 5];
+    let mut xs = [0; 5];
+    for (row, line) in reader.lines().enumerate() {
         let line = line.unwrap();
-        x %= line.len();
-        if &line[x..x+1] == "#" {
-            count += 1;
+        let width = line.len();
+        for (i, (dx, dy)) in slopes.iter().enumerate() {
+            if row % dy != 0 {
+                continue;
+            }
+
+            xs[i] %= width;
+            if &line[xs[i]..xs[i]+1] == "#" {
+                counts[i] += 1;
+            }
+            xs[i] += dx;
         }
-        x += 3;
     }
-    println!("{}", count);
+    println!("Part 1: {}", counts[1]);
+    println!("Part 2: {}", counts.iter().product::<u64>());
 
     Ok(())
 }
