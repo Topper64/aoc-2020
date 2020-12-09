@@ -37,7 +37,7 @@ fn check2(rule: &Rule, password: &str) -> bool {
 }
 
 fn main() -> io::Result<()> {
-    let file = File::open("input.txt")?;
+    let file = File::open("inputs/02.txt")?;
     let reader = BufReader::new(file);
 
     let mut count1 = 0;

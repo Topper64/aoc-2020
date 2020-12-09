@@ -70,7 +70,7 @@ fn try_fix(instructions: &Instructions) -> Option<Int> {
 }
 
 fn main() -> io::Result<()> {
-    let reader = BufReader::new(File::open("input.txt")?);
+    let reader = BufReader::new(File::open("inputs/08.txt")?);
 
     // Read file
     let mut instructions = Vec::new();

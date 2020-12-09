@@ -3,7 +3,7 @@ use std::fs::File;
 use std::cmp::Ordering::{Less, Greater};
 
 fn main() -> io::Result<()> {
-    let reader = BufReader::new(File::open("input.txt")?);
+    let reader = BufReader::new(File::open("inputs/05.txt")?);
 
     // Read file
     let mut nums: Vec<usize> = reader.lines()

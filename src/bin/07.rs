@@ -3,7 +3,7 @@ use std::fs::File;
 use std::collections::{HashSet, HashMap};
 
 fn main() -> io::Result<()> {
-    let reader = BufReader::new(File::open("input.txt")?);
+    let reader = BufReader::new(File::open("inputs/07.txt")?);
 
     // Read file
     let mut relations = HashMap::new();

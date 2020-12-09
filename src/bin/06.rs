@@ -3,7 +3,7 @@ use std::fs::File;
 use std::collections::HashMap;
 
 fn main() -> io::Result<()> {
-    let reader = BufReader::new(File::open("input.txt")?);
+    let reader = BufReader::new(File::open("inputs/06.txt")?);
 
     let mut lines = reader.lines().map(|line| line.unwrap()).peekable();
     let mut count1 = 0;

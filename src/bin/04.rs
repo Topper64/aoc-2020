@@ -91,7 +91,7 @@ fn check_passport(fields: &Vec<String>) -> Option<bool> {
 }
 
 fn main() -> io::Result<()> {
-    let file = File::open("input.txt")?;
+    let file = File::open("inputs/04.txt")?;
     let reader = BufReader::new(file);
 
     let mut count1 = 0;

@@ -3,7 +3,7 @@ use std::fs::File;
 use std::collections::VecDeque;
 
 fn main() -> io::Result<()> {
-    let reader = BufReader::new(File::open("input.txt")?);
+    let reader = BufReader::new(File::open("inputs/09.txt")?);
 
     // Read file
     let range = 25;

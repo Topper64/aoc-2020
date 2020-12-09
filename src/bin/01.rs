@@ -2,7 +2,7 @@ use std::io::{self, BufRead, BufReader};
 use std::fs::File;
 
 fn main() -> io::Result<()> {
-    let file = File::open("input.txt")?;
+    let file = File::open("inputs/01.txt")?;
     let reader = BufReader::new(file);
 
     let mut numbers = Vec::new();

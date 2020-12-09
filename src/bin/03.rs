@@ -2,7 +2,7 @@ use std::io::{self, BufRead, BufReader};
 use std::fs::File;
 
 fn main() -> io::Result<()> {
-    let file = File::open("input.txt")?;
+    let file = File::open("inputs/03.txt")?;
     let reader = BufReader::new(file);
 
     let slopes = [(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)];
