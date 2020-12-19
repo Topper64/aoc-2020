@@ -18,13 +18,16 @@ fn main() -> io::Result<()> {
     }
 
     // Play the game
-    for i in nums.len()+1..2020 {
+    for i in nums.len()+1..30_000_000 {
+        if i == 2020 {
+            println!("Part 1: {}", last);
+        }
         let j = i - nums.get(&last).unwrap_or(&i);
         nums.insert(last, i);
         last = j;
     }
 
-    println!("Part 1: {}", last);
+    println!("Part 2: {}", last);
 
     Ok(())
 }
