@@ -1,6 +1,6 @@
 use std::io::{self, BufRead, BufReader};
 use std::fs::File;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use regex::Regex;
 
 fn main() -> io::Result<()> {
@@ -44,17 +44,52 @@ fn main() -> io::Result<()> {
             tickets.push(ticket);
         }
     }
+    let mine = mine.unwrap();
 
-    // Count the errors
-    let errors = tickets.iter().map(
-        |ticket| ticket.iter().filter(
-            |n| !field_bounds.values().any(
-                |bounds| bounds.iter().any(|bound| bound.contains(n))
-            )
-        ).sum::<usize>()
-    ).sum::<usize>();
+    // Compare each field of each ticket to the valid ranges
+    let mut errors = 0;
+    let mut options = HashMap::new();  // index -> set of options
+    for ticket in tickets {
+        for (i, n) in ticket.iter().enumerate() {
+            // Find which fields this could be
+            let opts: HashSet<&String> = field_bounds.iter()
+                .filter(|(_, bounds)| bounds.iter().any(|bound| bound.contains(n)))
+                .map(|(field, _)| field)
+                .collect();
+            // If none, ignore entirely (and count for part 1)
+            if opts.len() == 0 {
+                errors += n;
+                continue;
+            }
+            // Otherwise, update the overall options for this slot
+            let so_far = options.entry(i).or_insert_with(|| opts.clone());
+            *so_far = so_far.intersection(&opts).map(|r| *r).collect();
+        }
+    }
+
+    // Deduce which field is which
+    let mut mapping = HashMap::new();  // name -> index
+    while options.len() > 0 {
+        for (i, opts) in options.iter_mut() {
+            // Remove options that have since been assigned
+            opts.retain(|field| !mapping.contains_key(field));
+            // Update known mappings if possible
+            if opts.len() == 1 {
+                mapping.insert(opts.drain().next().unwrap(), *i);
+            }
+        }
+        // Remove used options
+        options.retain(|_, opts| opts.len() > 0);
+    }
+
+    // Get the actual answer (product of all "departure" fields)
+    let ans: usize = mapping.iter()
+        .filter(|(name, _)| name.starts_with("departure"))
+        .map(|(_, i)| mine.get(*i).unwrap())
+        .product();
 
     println!("Part 1: {}", errors);
+    println!("Part 2: {}", ans);
 
     Ok(())
 }
