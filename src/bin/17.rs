@@ -1,208 +1,114 @@
 use std::io::{self, BufRead, BufReader};
 use std::fs::File;
-use std::fmt;
-use std::cmp::PartialEq;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-#[derive(Default)]
-struct Grid3d<T> {
-    cells: HashMap<(i32, i32, i32), T>,
-    xmin: i32,
-    xmax: i32,
-    ymin: i32,
-    ymax: i32,
-    zmin: i32,
-    zmax: i32,
+#[derive(Debug)]
+struct GridND {
+    cells: HashSet<Vec<i32>>,
+    ndim: u32,
 }
 
-impl From<File> for Grid3d<bool> {
-    fn from(file: File) -> Grid3d<bool> {
+impl From<File> for GridND {
+    fn from(file: File) -> GridND {
         let reader = BufReader::new(file);
 
-        let mut cells = HashMap::new();
-        let mut xmax = 0;
-        let mut ymax = 0;
+        let mut cells = HashSet::new();
         for (y, line) in reader.lines().map(|line| line.unwrap()).enumerate() {
             let y = y as i32;
             for (x, char) in line.char_indices() {
                 let x = x as i32;
-                let i = (x, y, 0);
-                cells.insert(i, char == '#');
-                if x > xmax {
-                    xmax = x;
+                let i = vec![x, y];
+                if char == '#' {
+                    cells.insert(i);
                 }
             }
-            ymax = y;
         }
 
-        Grid3d {
-            cells,
-            xmax,
-            ymax,
-            ..Default::default()
-        }
+        GridND {cells, ndim: 2}
     }
 }
 
-impl fmt::Display for Grid3d<bool> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(
-            &(self.zmin..=self.zmax)
-                .map(|z| format!(
-                    "z={}\n{}",
-                    z,
-                    (self.ymin..=self.ymax)
-                        .map(|y| (self.xmin..=self.xmax)
-                            .map(|x| if self.cells[&(x, y, z)] {'#'} else {'.'})
-                            .collect::<String>()
-                        )
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                ))
-                .collect::<Vec<_>>()
-                .join("\n\n")
-        )
+impl GridND {
+    fn with_dims(&self, n: u32) -> GridND {
+        let mut cells = HashSet::new();
+        for i in self.cells.iter() {
+            let mut i = i.clone();
+            while i.len() < n as usize {
+                i.push(0);
+            }
+            while i.len() > n as usize {
+                i.pop();
+            }
+            cells.insert(i);
+        }
+
+        GridND {cells, ndim: n}
     }
-}
 
-impl<T> Grid3d<T>
-where T: Default + PartialEq {
-    fn pad(&mut self) {
-        // Check left (low x)
-        if (self.ymin..=self.ymax).any(
-            |y| (self.zmin..=self.zmax).any(
-                |z| self.cells[&(self.xmin, y, z)] == Default::default()
-            )
-        ) {
-            self.xmin -= 1;
-            for y in self.ymin..=self.ymax {
-                for z in self.zmin..=self.zmax {
-                    self.cells.insert((self.xmin, y, z), Default::default());
-                }
-            }
-        }
-
-        // Check right (high x)
-        if (self.ymin..=self.ymax).any(
-            |y| (self.zmin..=self.zmax).any(
-                |z| self.cells[&(self.xmax, y, z)] == Default::default()
-            )
-        ) {
-            self.xmax += 1;
-            for y in self.ymin..=self.ymax {
-                for z in self.zmin..=self.zmax {
-                    self.cells.insert((self.xmax, y, z), Default::default());
-                }
-            }
-        }
-
-        // Check front (low y)
-        if (self.xmin..=self.xmax).any(
-            |x| (self.zmin..=self.zmax).any(
-                |z| self.cells[&(x, self.ymin, z)] == Default::default()
-            )
-        ) {
-            self.ymin -= 1;
-            for x in self.xmin..=self.xmax {
-                for z in self.zmin..=self.zmax {
-                    self.cells.insert((x, self.ymin, z), Default::default());
-                }
-            }
-        }
-
-        // Check back (high y)
-        if (self.xmin..=self.xmax).any(
-            |x| (self.zmin..=self.zmax).any(
-                |z| self.cells[&(x, self.ymax, z)] == Default::default()
-            )
-        ) {
-            self.ymax += 1;
-            for x in self.xmin..=self.xmax {
-                for z in self.zmin..=self.zmax {
-                    self.cells.insert((x, self.ymax, z), Default::default());
-                }
-            }
-        }
-
-        // Check bottom (low z)
-        if (self.xmin..=self.xmax).any(
-            |x| (self.ymin..=self.ymax).any(
-                |y| self.cells[&(x, y, self.zmin)] == Default::default()
-            )
-        ) {
-            self.zmin -= 1;
-            for x in self.xmin..=self.xmax {
-                for y in self.ymin..=self.ymax {
-                    self.cells.insert((x, y, self.zmin), Default::default());
-                }
-            }
-        }
-
-        // Check top (high z)
-        if (self.xmin..=self.xmax).any(
-            |x| (self.ymin..=self.ymax).any(
-                |y| self.cells[&(x, y, self.zmax)] == Default::default()
-            )
-        ) {
-            self.zmax += 1;
-            for x in self.xmin..=self.xmax {
-                for y in self.ymin..=self.ymax {
-                    self.cells.insert((x, y, self.zmax), Default::default());
-                }
-            }
-        }
-    }
-}
-
-impl Grid3d<bool> {
     fn step(&mut self) {
-        self.pad();
-
-        let old = self.cells.clone();
-        for (i, active) in self.cells.iter_mut() {
-            // Count neighbours
-            let (x, y, z) = i;
-            let mut neighbours = 0;
-            for x2 in x-1..=x+1 {
-                for y2 in y-1..=y+1 {
-                    for z2 in z-1..=z+1 {
-                        if old.get(&(x2, y2, z2)) == Some(&true) {
-                            neighbours += 1;
-                        }
-                    }
-                }
+        // Generate all offsets for immediate neighbours
+        let mut offsets = Vec::new();
+        for mut n in 0..3_usize.pow(self.ndim) {
+            let mut offset = Vec::new();
+            for _ in 0..self.ndim {
+                offset.push(n.rem_euclid(3) as i32 - 1);
+                n = n.div_euclid(3);
             }
-
-            // Uncount current cell
-            if *active {
-                neighbours -= 1;
+            if offset.iter().any(|i| i != &0) {
+                offsets.push(offset);
             }
+        }
 
-            // Change state according to given rules:
-            // - active cells must have 2 or 3 neighbours to stay active
-            // - inactive cells become active if exactly 3 neighbours are
-            let new_state = match (*active, neighbours) {
+        // Count neighbours, by adding 1 to each neighbouring index of each active cell
+        let mut neighbours = HashMap::new();
+        for index in self.cells.iter() {
+            for offset in offsets.iter() {
+                let index2: Vec<_> = index.iter()
+                    .zip(offset)
+                    .map(|(i, j)| i + j)
+                    .collect();
+                *neighbours.entry(index2).or_insert(0) += 1;
+            }
+        }
+
+        // Change state according to given rules:
+        // - active cells must have 2 or 3 neighbours to stay active
+        // - inactive cells become active if exactly 3 neighbours are
+        let mut new_cells = HashSet::new();
+        for (index, count) in neighbours.iter() {
+            let active = self.cells.contains(index);
+            let new_state = match (active, count) {
                 (true, 2..=3) => true,
                 (false, 3) => true,
                 _ => false,
             };
-            *active = new_state;
+            if new_state {
+                new_cells.insert(index.to_vec());
+            }
         }
+        self.cells = new_cells;
     }
 
     fn count_active(&self) -> usize {
-        self.cells.values().fold(0, |acc, active| acc + match active {true => 1, false => 0})
+        self.cells.len()
     }
 }
 
 fn main() -> io::Result<()> {
     // Read file
-    let mut grid = Grid3d::from(File::open("inputs/17.txt")?);
+    let grid2d = GridND::from(File::open("inputs/17.txt")?);
 
+    let mut grid3d = grid2d.with_dims(3);
     for _ in 0..6 {
-        grid.step();
+        grid3d.step();
     }
-    println!("Part 1: {}", grid.count_active());
+    println!("Part 1: {}", grid3d.count_active());
+
+    let mut grid4d = grid2d.with_dims(4);
+    for _ in 0..6 {
+        grid4d.step();
+    }
+    println!("Part 2: {}", grid4d.count_active());
 
     Ok(())
 }
