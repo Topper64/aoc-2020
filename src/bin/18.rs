@@ -1,15 +1,23 @@
 use std::io::{self, BufRead, BufReader};
 use std::fs::File;
 
-fn evaluate(expr: &str) -> i64 {
-    let mut nums = Vec::new();
-    let mut ops = Vec::new();
+enum Token {
+    Num(i64),
+    Add,
+    Mul,
+    Open,
+    Close,
+}
+
+fn tokenise(expr: &str) -> Vec<Token> {
+    let mut tokens = Vec::new();
     for mut term in expr.split_whitespace() {
         // Check for brackets
-        let mut open = 0;
+        // Open brackets can be pushed immediately, close brackets must be
+        // remembered for later
         while let Some(trimmed) = term.strip_prefix('(') {
             term = trimmed;
-            open += 1;
+            tokens.push(Token::Open);
         }
         let mut close = 0;
         while let Some(trimmed) = term.strip_suffix(')') {
@@ -17,34 +25,69 @@ fn evaluate(expr: &str) -> i64 {
             close += 1;
         }
 
-        if let Ok(mut n) = i64::from_str_radix(term, 10) {
-            if open > 0 {
-                // Add dummy operators to keep track of bracket depth
-                while open > 1 {
-                    open -= 1;
-                    ops.push("(");
-                }
-            } else if ops.len() > 0 {
-                // Eagerly apply any operator as long as no brackets are being opened
-                close += 1;
-            }
+        // Identify operators or numbers
+        tokens.push(match term {
+            "+" => Token::Add,
+            "*" => Token::Mul,
+            _ => Token::Num(i64::from_str_radix(term, 10).unwrap()),
+        });
 
-            while close > 0 {
-                close -= 1;
-                if let Some(op) = ops.pop() {
-                    n = match op {
-                        "+" => nums.pop().unwrap() + n,
-                        "*" => nums.pop().unwrap() * n,
-                        _ => n,
-                    }
-                }
-            }
-
-            nums.push(n);
-        } else {
-            ops.push(term);
+        // Add the closing brackets
+        while close > 0 {
+            close -= 1;
+            tokens.push(Token::Close);
         }
-        // println!("{}: {} {:?}", term, ops.join(" "), nums);
+    }
+    tokens
+}
+
+fn evaluate(expr: &str) -> i64 {
+    let mut nums = Vec::new();
+    let mut ops = Vec::new();
+
+    // Function to apply an operator to the top two numbers
+    let eval = |nums: &mut Vec<i64>, op: &Token| {
+        let n1 = nums.pop().unwrap();
+        let n2 = nums.pop().unwrap();
+        nums.push(match op {
+            Token::Add => n1 + n2,
+            Token::Mul => n1 * n2,
+            _ => panic!(),
+        });
+    };
+
+    let tokens = tokenise(expr);
+    for token in tokens.iter() {
+        match token {
+            Token::Num(n) => nums.push(*n),
+            Token::Open => ops.push(token),
+            Token::Close => {
+                // Evaluate all operators back to the matching open bracket
+                while let Some(op) = ops.pop() {
+                    if let Token::Open = op {
+                        break;
+                    }
+                    eval(&mut nums, op);
+                }
+            },
+            _ => {
+                // Evaluate operators with higher or equal precedence
+                while let Some(op) = ops.pop() {
+                    if let Token::Open = op {
+                        ops.push(op);
+                        break;
+                    }
+                    eval(&mut nums, op);
+                }
+                // Remember current operator
+                ops.push(token);
+            },
+        }
+    }
+
+    // Evaluate any remaining operators
+    while let Some(op) = ops.pop() {
+        eval(&mut nums, op);
     }
 
     nums.pop().unwrap()
